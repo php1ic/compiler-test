@@ -33,27 +33,26 @@ usage () {
 }
 
 
-CreateOptionFile() {
-    echo "section=a
-    type=c
-    choice=b
-    "
-}
-
-
 runEXE() {
     NAME="${1%-*}"
     TIMES="${2}"
 
     optionFile="${NAME}.in"
 
-    CreateOptionFile > "${optionFile}"
+    echo "section=a
+    type=c
+    choice=b
+    " > "${optionFile}"
+
+    #CreateOptionFile > "${optionFile}"
 
     for ((i=0; i<"${TIMES}"; i++))
     do
         /usr/bin/time -f "RunTime - %e" "$1" -i "${optionFile}" -o "${NAME}" > /dev/null 2>> "${NAME}"_runtime.dat
         rm -f "${NAME}.eps"
     done
+
+    rm -f "${optionFile}"
 
     echo -e "Finished running ${1}\t${2} times @ $(date +%H:%M:%S)"
 }
