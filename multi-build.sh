@@ -21,20 +21,18 @@ VERBOSE=0
 
 usage() {
     echo -e "
-  ${BLUE}USAGE${RESTORE}: ${BASH_SOURCE##*/} -p path/to/project/source [-j jobs] [-g generator] [-m path/to/cmake] [-b build_type] [compiler [compiler ...] ]
+  ${BLUE}USAGE${RESTORE}: ${BASH_SOURCE##*/} -p path/to/project/source [-v] [-j jobs] [-g generator] [-m path/to/cmake] [-b build_typeA,build_typeB] [-c compilerA,compilerB,... ]
 
   Required Arguments
-    -p         Path to the source that will be built
+    -p   Path to the source that will be built
 
   Optional Arguments:
-    -v         Show the cmake & make output, use as ON/OFF flag [default: OFF]
-    -j         How many jobs to spawn during the build [default: ${DEFAULT_JOBS}]
-    -g         The build system to use [default: ${DEFAULT_BUILDGENERATOR}]
-    -m         The version of cmake to use [default: ${DEFAULT_CMAKE}]
-    -b         Build type to use with cmake, for >1 use multiple instances of this option [default: ${DEFAULT_BUILDTYPE}]
-
-    compiler   Space separated list of compilers to create builds for
-               ${YELLOW}MUST appear after all other arguments ${RESTORE}[default: ${DEFAULT_COMPILERS[*]}]
+    -v   Show the cmake & make output, use as ON/OFF flag [default: OFF]
+    -j   How many jobs to spawn during the build (ignored for ninja builds) [default: ${DEFAULT_JOBS}]
+    -g   The build system to use [default: ${DEFAULT_BUILDGENERATOR}]
+    -m   The version of cmake to use [default: ${DEFAULT_CMAKE}]
+    -b   Comma ',' separated list of build type to use with cmake [default: ${DEFAULT_BUILDTYPE}]
+    -c   Comma ',' separated list of compilers to create builds for [default: ${DEFAULT_COMPILERS[*]}]
 "
     exit 1
 }
@@ -49,7 +47,7 @@ RunCmake() {
 }
 
 
-while getopts ":hvm:j:g:b:p:" OPTIONS
+while getopts ":hvm:j:g:b:p:c:" OPTIONS
 do
     case "${OPTIONS}" in
         h | \? | : )
@@ -68,17 +66,18 @@ do
             BUILDGENERATOR=${OPTARG}
             ;;
         b )
-            BUILDTYPE+=("${OPTARG}")
+            IFS=',' read -ra BUILDTYPE <<< "${OPTARG}"
             ;;
         p )
             PROJECT=$(readlink -f "${OPTARG}")
             [ -d "${PROJECT}" ] || usage
             ;;
+        c )
+            IFS=',' read -ra COMPILERS <<< "${OPTARG}"
+            ;;
     esac
 done
 shift $((OPTIND-1))
-
-COMPILERS=( "$@" )
 
 if [[ ${#COMPILERS[@]} -eq 0 ]]
 then
@@ -99,10 +98,10 @@ then
     usage
 fi
 
-#echo "<${VERBOSE}> <${CMAKE}> <${JOBS}> <${BUILDTYPE}> <${PROJECT}> <${COMPILERS[*]}>"
 echo -e "
 Running builds with
 Compilers:    ${GREEN}${COMPILERS[*]}${RESTORE}
+Build types:  ${BLUE}${BUILDTYPE[*]}${RESTORE}
 Build system: ${YELLOW}${BUILDGENERATOR}${RESTORE}"
 
 declare -A COMPILE_TIMES
@@ -166,9 +165,9 @@ done
 echo ""
 echo "Sorted compile times:"
 
-for K in "${!COMPILE_TIMES[@]}"
+for TIMES in "${!COMPILE_TIMES[@]}"
 do
-    echo "$K | ${COMPILE_TIMES[$K]}"
+    echo "$TIMES | ${COMPILE_TIMES[$TIMES]}"
 done |
     sort -n -k3 | column -t
 
