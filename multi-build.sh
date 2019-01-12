@@ -12,7 +12,6 @@ CYAN='\e[0;36m'
 #WHITE="\e[0;37m"
 #BLACK="\e[0;30m"
 
-
 DEFAULT_COMPILERS=(g++ clang++)
 DEFAULT_CMAKE=$(command -v cmake)
 DEFAULT_BUILDGENERATOR="Unix Makefiles"
@@ -38,11 +37,6 @@ usage() {
                ${YELLOW}MUST appear after all other arguments ${RESTORE}[default: ${DEFAULT_COMPILERS[*]}]
 "
     exit 1
-}
-
-
-TimeBuild() {
-    /usr/bin/time -f "Build time: %e" "$@"
 }
 
 
@@ -111,6 +105,8 @@ Running builds with
 Compilers:    ${GREEN}${COMPILERS[*]}${RESTORE}
 Build system: ${YELLOW}${BUILDGENERATOR}${RESTORE}"
 
+declare -A COMPILE_TIMES
+
 for COMPILER in "${COMPILERS[@]}"
 do
     echo -e "\\nUsing ${PURPLE}${COMPILER}${RESTORE}"
@@ -142,8 +138,6 @@ do
             outfile=/dev/stdout
         fi
 
-        RunCmake "${EXE}" "${BUILD}" "${outfile}"
-
         if ! RunCmake "${EXE}" "${BUILD}" "${outfile}"
         then
             echo "cmake failed"
@@ -155,13 +149,28 @@ do
             ADDITIONALFLAGS=-j${JOBS}
         fi
 
+        exec 3>${outfile}
         # Don't double quote ADDITIONALFLAGS, it can be empty
         # shellcheck disable=SC2086
-        TimeBuild cmake --build . -- ${ADDITIONALFLAGS} > ${outfile}
+        TIME=$(TIMEFORMAT="%R"; { time cmake --build . -- ${ADDITIONALFLAGS} 1>&3 ; } 2>&1 )
+        exec 3>&-
+
+        echo "Run time: ${TIME}"
+
+        COMPILE_TIMES["${COMPILER##*/}-${BUILD}"]=${TIME}
 
         popd > /dev/null || continue
     done
 done
+
+echo ""
+echo "Sorted compile times:"
+
+for K in "${!COMPILE_TIMES[@]}"
+do
+    echo "$K | ${COMPILE_TIMES[$K]}"
+done |
+    sort -n -k3 | column -t
 
 echo ""
 
