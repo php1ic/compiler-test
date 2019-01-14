@@ -21,7 +21,7 @@ trap 'pkill -P $$' EXIT
 
 usage () {
     echo -e "
-  ${BLUE}USAGE${RESTORE}: ${BASH_SOURCE##*/} [-n runs] [-p] [executable [executable ...] ]
+  ${BLUE}USAGE${RESTORE}: ${BASH_SOURCE##*/} [-n runs] [-s] [-p] [executable [executable ...] ]
 
   Required Arguments
     executable   Space separated list of executables to run
